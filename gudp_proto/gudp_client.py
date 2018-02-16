@@ -1,4 +1,4 @@
-from gudp_proto.gudp import Gudp
+from gudp import Gudp
 
 class Client:
     def __init__(self, proto_id, ip_addr, port,

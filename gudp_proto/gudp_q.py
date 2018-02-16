@@ -12,7 +12,7 @@
 import socket
 
 from threading import Lock
-from gudp_proto.packet import Packet
+from packet import Packet
 
 
 class GudpQ(object):

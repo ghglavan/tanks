@@ -1,4 +1,4 @@
-from gudp_proto.gudp_server import Server
+from gudp_server import Server
 from time import sleep
 
 def run():

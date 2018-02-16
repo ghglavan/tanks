@@ -1,6 +1,6 @@
 import socket
-from gudp_proto.packet import Packet
-from gudp_proto.gudp import Gudp
+from packet import Packet
+from gudp import Gudp
 
 
 class Server(object):

@@ -25,8 +25,8 @@ import threading
 import struct
 import sys
 
-from gudp_proto.packet import Packet,seq_gt,add_to_seq,sub_from_seq
-from gudp_proto.gudp_q import GudpQ
+from packet import Packet,seq_gt,add_to_seq,sub_from_seq
+from gudp_q import GudpQ
 
 
 
@@ -87,6 +87,7 @@ class Gudp(object):
     def close(self):
         self.t.cancel()
         self.s_w_s_ev.set()
+        self.s_w_ctl.join()
 
     def recv(self, p: Packet = None):
         
@@ -163,6 +164,9 @@ class Gudp(object):
 
         packet.prot_id = self.proto_id
         packet.data    = data
+
+        with self.send_p_lock:
+            self.send_pack[packet.seq] = packet
 
         self.gudpq.add_to_q(packet)
         
