@@ -81,6 +81,7 @@ class Gudp(object):
         self.s_w_ctl.start()
 
         self.t = threading.Timer(1, self.__resend)
+        self.t.start()
 
     def __del__(self):
         self.close()
@@ -120,15 +121,14 @@ class Gudp(object):
             self.recv_seq.append(packet.seq)
 
         with self.send_p_lock:
-            if self.send_pack[packet.ack] is not None:
+            if packet.ack in self.send_pack.keys():
                     self.send_pack.pop(packet.ack, None)
 
 
         for i in range(31,-1,-1):
             if 1<<i & packet.ack_bit == 1:
                 with self.send_p_lock:
-                    if self.send_pack[sub_from_seq(packet.ack, i+1)] \
-                        is not None:
+                    if sub_from_seq(packet.ack, i+1) in self.send_pack.keys():
                             self.send_pack.pop(sub_from_seq(packet.ack, i+1), None)
 
         if p is None:
@@ -170,12 +170,13 @@ class Gudp(object):
 
     def __resend(self):
         with self.send_p_lock:
-            for p in self.send_pack:
+            for p in self.send_pack.values():
                 self.gudpq.add_to_q(p)
             
-        self.send_pack = []
+        self.send_pack = {}
 
         self.t = threading.Timer(1, self.__resend)
+        self.t.start()
                 
 
     def __send_worker(self):

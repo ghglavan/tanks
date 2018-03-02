@@ -228,4 +228,5 @@ class Controller:
 
             pygame.display.flip()
  
-        Timer(0.05, self.__worker_draw_and_report).start()
+        self.timed_draw_r = Timer(0.05, self.__worker_draw_and_report)
+        self.timed_draw_r.start()
