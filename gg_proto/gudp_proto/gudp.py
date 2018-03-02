@@ -48,15 +48,12 @@ class Gudp(object):
         self.s_port     = s_port
         
         self.remote_seq = 0
-        self.r_s_lock   = threading.Lock()
 
         self.proto_id   = proto_id
 
         self.recv_seq   = []
-        self.r_seq_lock = threading.Lock() 
 
         self.seq      = 100
-        self.seq_lock = threading.Lock()
 
         self.send_pack  = {}
         self.send_p_lock= threading.Lock() 
@@ -80,8 +77,8 @@ class Gudp(object):
         self.s_w_s_ev = threading.Event()
         self.s_w_ctl.start()
 
-        self.t = threading.Timer(1, self.__resend)
-        self.t.start()
+        # self.t = threading.Timer(1, self.__resend)
+        # self.t.start()
 
     def __del__(self):
         self.close()
@@ -114,16 +111,15 @@ class Gudp(object):
             packet = p
             
         
-        with self.r_s_lock:
-            if seq_gt(packet.seq, self.remote_seq):
-                self.remote_seq = packet.seq
-            
-            self.recv_seq.append(packet.seq)
+        if seq_gt(packet.seq, self.remote_seq):
+            self.remote_seq = packet.seq
+        
+        self.recv_seq.append(packet.seq)
 
         with self.send_p_lock:
             if packet.ack in self.send_pack.keys():
                     self.send_pack.pop(packet.ack, None)
-                    
+
             for i in range(31,-1,-1):
                 if 1<<i & packet.ack_bit == 1:
                     if sub_from_seq(packet.ack, i+1) in self.send_pack.keys():
@@ -136,23 +132,21 @@ class Gudp(object):
 
     def send(self, data):
         packet = Packet()
-        with self.r_s_lock:
-            packet.ack = self.remote_seq
+
+        packet.ack = self.remote_seq
             
-        with self.seq_lock:
-            packet.seq = self.seq
-            self.seq = add_to_seq(self.seq, 1)
+        packet.seq = self.seq
+        self.seq = add_to_seq(self.seq, 1)
 
         seq_mask = 0
 
-        with self.r_s_lock:
-            for s in self.recv_seq:
-                if seq_gt(self.remote_seq, s):
-                    subed = sub_from_seq(self.remote_seq, s)
-                    if subed <= 31:
-                        seq_mask = seq_mask | 1<<subed
-                    elif subed > 32768:
-                        seq_mask = seq_mask | 1<<((0xffffffff - subed) % 32 )
+        for s in self.recv_seq:
+            if seq_gt(self.remote_seq, s):
+                subed = sub_from_seq(self.remote_seq, s)
+                if subed <= 31:
+                    seq_mask = seq_mask | 1<<subed
+                elif subed > 32768:
+                    seq_mask = seq_mask | 1<<((0xffffffff - subed) % 32 )
             
         packet.ack_bit = seq_mask
 

@@ -189,7 +189,7 @@ class GGServer:
             if client["id"] != self.clients[addr]["id"]:
                 print("reporting to {} with id {} that {} is connected and has pos {}"\
                 .format(addr, self.clients[addr]["id"], client["id"], (client['x'],client['y'])))
-                packed_clients = pack_client(client)
+                packed_clients += pack_client(client)
 
         pack_clients_l = pack("=I", len(self.clients)-1)
 

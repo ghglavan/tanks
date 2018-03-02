@@ -4,7 +4,7 @@ import sys
 import threading
 
 from tank import Tank,Bullet
-from controller import Controller
+from controller import Controller, update_screen_event, server_update_event
 
 def main():
     size = width, height = 320, 240
@@ -47,16 +47,38 @@ def main():
                                  client, 
                                  server)
 
+    pygame.time.set_timer(update_screen_event, 300)
+
     game_controller.start()
 
     while True:
-        #print("looping():D")
         for event in pygame.event.get():
-            if event.type == pygame.QUIT: sys.exit()
+            if event.type == pygame.QUIT: sys.exit() 
             if (event.type != pygame.KEYDOWN) and \
-               (event.type != pygame.KEYUP): 
+               (event.type != pygame.KEYUP) and \
+               (event.type != server_update_event) and \
+               (event.type != update_screen_event): 
                 continue
             
+            if event.type == update_screen_event:
+                game_controller.worker_draw_and_report()
+                continue
+            
+            if event.type == server_update_event:
+                print("Updating")
+                if event.g_type == "new":
+                    game_controller.on_new_user(event.data)
+                elif event.g_type == "upd":
+                    game_controller.on_user_update(event.data)
+                elif event.g_type == "fire":
+                    game_controller.on_user_fire(event.data)
+                elif event.g_type == "pos":
+                    game_controller.on_users_positions(event.data)
+                elif event.g_type == "kill":
+                    game_controller.on_user_kill_disc(event.data)
+                
+                continue
+
             if event.key not in keys_down:
                 continue
             

@@ -35,8 +35,9 @@ class Tank:
         self.bullet_dimentions = bullet_dimentions
 
         self.bullets = []
-        self.last_update = None
-        self.last_fired  = None
+        self.last_update        = None
+        self.last_local_update  = None
+        self.last_fired         = None
 
     def get_gun_dir(self):
         return self.gun_o
@@ -56,7 +57,11 @@ class Tank:
     def get_pos(self):
         return (self.rect.x, self.rect.y, self.gun_o)
 
-    def get_local_pos(self):
+    def get_local_pos(self, l_u=None):
+        if l_u:
+            self.last_local_update = l_u    
+        else:
+            self.last_local_update = time()
         return (self.local_rect.x, self.local_rect.y, self.local_go)
 
     def move(self, where, u_ts = None):
@@ -70,7 +75,12 @@ class Tank:
         if where[1] != 0:
             self.__move_y(where[1])
 
-    def s_move(self, where):
+    def s_move(self, where, l_u = None):
+        if l_u:
+            self.last_local_update = l_u    
+        else:
+            self.last_local_update = time()
+
         if where[0] != 0:
             return self.__s_move_x(where[0])
         if where[1] != 0:
