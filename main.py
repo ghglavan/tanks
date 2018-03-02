@@ -10,7 +10,7 @@ def main():
     size = width, height = 320, 240
     gray = 112, 112, 112
 
-    server  = ("127.0.0.1", 8080)
+    server  = ("192.168.0.222", 8080)
     client  = (""         , 0   )
     prot_id = 1
 

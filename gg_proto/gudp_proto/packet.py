@@ -45,7 +45,7 @@ class Packet(object):
 
 def seq_gt(s1, s2):
     return  ( ( s1 > s2 ) and ( (s1 - s2) & _u_32_mask <= 32768 ) ) \
-            or ( (s2 > s1) and ( (s2 - s1) & _u_32_mask <= 32768 ) )
+            or ( (s2 > s1) and ( (s2 - s1) & _u_32_mask > 32768 ) )
 
 def add_to_seq(s, to_add = 1):
     return (s + to_add) & _u_32_mask

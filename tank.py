@@ -6,7 +6,7 @@ from time import time
 class Tank:
     
     def __init__    (self,
-                    id, 
+                    t_id, 
                     image, 
                     screen,
                     bullet_dimentions,
@@ -18,6 +18,10 @@ class Tank:
         self.rect = image.get_rect()
         self.rect = self.rect.move(tank_position)
 
+        self.local_rect = self.rect.copy()
+
+        self.id = t_id
+
         self.image = image
         self.screen = screen
         self.w_width = screen.get_width()
@@ -25,6 +29,9 @@ class Tank:
         self.speed = speed
         self.gun_o = gun_o
         self.rotate(Directions.UP, gun_o)
+
+        self.local_go = gun_o
+
         self.bullet_dimentions = bullet_dimentions
 
         self.bullets = []
@@ -49,6 +56,9 @@ class Tank:
     def get_pos(self):
         return (self.rect.x, self.rect.y, self.gun_o)
 
+    def get_local_pos(self):
+        return (self.local_rect.x, self.local_rect.y, self.local_go)
+
     def move(self, where, u_ts = None):
         if u_ts is not None:
             self.last_update = u_ts
@@ -59,6 +69,52 @@ class Tank:
             self.__move_x(where[0])
         if where[1] != 0:
             self.__move_y(where[1])
+
+    def s_move(self, where):
+        if where[0] != 0:
+            return self.__s_move_x(where[0])
+        if where[1] != 0:
+            return self.__s_move_y(where[1])
+
+    def __s_move_x(self, where):
+        x, y = self.local_rect.topleft
+        gun_o = self.local_go
+
+        x += where * self.speed
+        if where == -1 and self.local_go != Directions.LEFT:
+            gun_o = Directions.LEFT
+        if where == 1 and self.local_go != Directions.RIGHT:
+            gun_o = Directions.RIGHT
+
+        if x < 0 or x + self.local_rect.width > self.w_width:
+            x -= where * self.speed
+
+        self.local_go = gun_o
+        self.local_rect.x = x
+        self.local_rect.y = y
+
+        return (x, y, gun_o)
+
+    def __s_move_y(self, where):
+        x, y = self.local_rect.topleft
+        gun_o = self.local_go
+
+        y += where * self.speed
+
+        if where == -1 and self.local_go != Directions.UP:
+            gun_o = Directions.UP
+        if where == 1 and self.local_go != Directions.DOWN:
+            gun_o = Directions.DOWN
+        
+        if y < 0 or y + self.local_rect.height > self.w_height:
+            y -= where * self.speed
+
+
+        self.local_go = gun_o
+        self.local_rect.x = x
+        self.local_rect.y = y
+
+        return (x, y, gun_o)
 
     def __move_x(self, where):
         self.rect = self.rect.move([where * self.speed, 0])

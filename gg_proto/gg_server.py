@@ -87,12 +87,12 @@ class GGServer:
         #time = 
 
         for cl_addr in self.clients.keys(): 
-            m_t = pack("=BId", int(MessageType.UserKilled), k_id, time())
+            m_t = pack("=BId", int(MessageType.UserKilled), k_id, l)
 
             self.gudp_s.send_to(m_t, cl_addr)
 
         self.clients.pop(k_addr, None)
-
+                
 
 
 
@@ -121,10 +121,9 @@ class GGServer:
         self.clients[addr]["bullets"].append(bullet)
 
         for cl_addr in self.clients.keys():
-            if cl_addr != addr:
-                m_t = pack("=BIIBId", int(MessageType.UserFired), x, y, o, c_id, time())
-
-                self.gudp_s.send_to(m_t, cl_addr)
+            m_t = pack("=BIIBId", int(MessageType.UserFired), x, y, o, c_id, l)
+            print("Sending fire report from {} to {}".format(addr, cl_addr))
+            self.gudp_s.send_to(m_t, cl_addr)
 
 
     def __on_position_update(self, data, addr):
@@ -134,7 +133,7 @@ class GGServer:
         print("User {} with addr {} reported a position update to {}"\
         .format(self.clients[addr]["id"], addr, (x,y,Directions(o))))
 
-        if old_ud > l or l - old_ud < 0.05 or l > time():
+        if old_ud > l or l - old_ud < 0.01 or l > time():
             print("Error updating poz old_ud: {}, l: {}, {}, {}"\
             .format(old_ud, l, l-old_ud, l-old_ud < 0.1))
             return
@@ -147,10 +146,9 @@ class GGServer:
         c_id = self.clients[addr]["id"]
 
         for cl_addr in self.clients.keys():
-            if cl_addr != addr:
-                m_t = pack("=BIIBId", int(MessageType.UsersUpdate), x, y, o, c_id, time())
-                print("sending position update to {}".format(cl_addr))
-                self.gudp_s.send_to(m_t, cl_addr)
+            m_t = pack("=BIIBId", int(MessageType.UsersUpdate), x, y, o, c_id, l)
+            print("sending position update to {}".format(cl_addr))
+            self.gudp_s.send_to(m_t, cl_addr)
 
     def __on_client_connect(self, data, addr):
         

@@ -55,7 +55,7 @@ class Gudp(object):
         self.recv_seq   = []
         self.r_seq_lock = threading.Lock() 
 
-        self.seq      = 0
+        self.seq      = 100
         self.seq_lock = threading.Lock()
 
         self.send_pack  = {}
@@ -123,11 +123,9 @@ class Gudp(object):
         with self.send_p_lock:
             if packet.ack in self.send_pack.keys():
                     self.send_pack.pop(packet.ack, None)
-
-
-        for i in range(31,-1,-1):
-            if 1<<i & packet.ack_bit == 1:
-                with self.send_p_lock:
+                    
+            for i in range(31,-1,-1):
+                if 1<<i & packet.ack_bit == 1:
                     if sub_from_seq(packet.ack, i+1) in self.send_pack.keys():
                             self.send_pack.pop(sub_from_seq(packet.ack, i+1), None)
 
@@ -143,6 +141,7 @@ class Gudp(object):
             
         with self.seq_lock:
             packet.seq = self.seq
+            self.seq = add_to_seq(self.seq, 1)
 
         seq_mask = 0
 
@@ -185,9 +184,6 @@ class Gudp(object):
             packet = self.gudpq.get_from_q()
             if packet is not None:
                 self.__send(packet.pack())
-                
-                with self.seq_lock:
-                    add_to_seq(self.seq, 1)
 
             #TODO: if there are still packets in proto_q.. do we
             # want to send them when the gudp object is destructed?

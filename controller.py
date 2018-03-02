@@ -21,14 +21,12 @@ class Controller:
         self.tanks_lock         = Lock()
         self.screen             = screen
         self.died               = Event()
-        self.player_tank_lock   = Lock()
-        self.player_tank        = None
         self.p_tank_img         = p_tank_i
         self.e_tank_img         = e_tank_i
         self.bullet_dimentions  = bulled_dims
         self.id                 = None
 
-        self.timed_draw_r     = Timer(0.02, self.__worker_draw_and_report)
+        self.timed_draw_r     = Timer(0.08, self.__worker_draw_and_report)
 
     def __del__(self):
         self.timed_draw_r.cancel()
@@ -50,13 +48,11 @@ class Controller:
         if self.died.is_set():
             return
 
-        with self.player_tank_lock:
-            tank = self.player_tank
-            if tank.last_update and time() - tank.last_update < 0.05:
-                return
+        tank = self.tanks[self.id]
+        t_x, t_y, t_o = tank.s_move([x, y])
+        print("tank is at {}, updating with {}".format(tank.rect.topleft, (t_x, t_y)))
 
-            tank.move([x,y])
-            t_x, t_y, t_o = tank.get_pos()
+
         m_t = pack("=BIIBd", int(MessageType.UsersUpdate), t_x, 
                                 t_y, t_o, time())
         self.gg_c.send(m_t)
@@ -65,15 +61,16 @@ class Controller:
         if self.died.is_set():
             return
 
-        with self.player_tank_lock:
-            self.player_tank.fire()
-            t_x, t_y, t_o = self.player_tank.get_pos()
+        tank = self.tanks[self.id]
+        t_x, t_y, t_o = tank.get_local_pos()
+
         m_t = pack("=BIIBd", int(MessageType.UserFired), t_x, 
                                 t_y, t_o, time())
         
         self.gg_c.send(m_t)
 
     def __report_kill(self, k_id):
+        print("Reporting kill on {}".format(k_id))
         m_t = pack("=BId", int(MessageType.UserKilled), k_id, time())
         self.gg_c.send(m_t)
 
@@ -84,7 +81,7 @@ class Controller:
     def __connect(self):
         self.gg_c.connect()
         self.id = self.gg_c.wait_id()
-        self.player_tank = Tank(self.id,
+        self.tanks[self.id] = Tank(self.id,
                                 self.p_tank_img,
                                 self.screen,
                                 self.bullet_dimentions,
@@ -105,29 +102,32 @@ class Controller:
     def __on_user_update(self,data):
         x, y, o, uid, t = unpack('=IIBId', data)
 
+    
+        if uid not in self.tanks.keys():
+            return
+
+        tank = self.tanks[uid]
+        if tank.last_update and tank.last_update > t:
+            return
+
+        old_x, old_y, _ = tank.get_pos()
+        o = Directions(o)
+
         with self.tanks_lock:
-            if uid not in self.tanks.keys():
-                return
-
-            tank = self.tanks[uid]
-            if tank.last_update and tank.last_update > t:
-                return
-
-            old_x, old_y, _ = tank.get_pos()
-            o = Directions(o)
-
-            print("Updating {}, with {}".format(uid, (x,y,o)))
-
             tank.move([x-old_x, y-old_y], t)
+
 
     def __on_user_fire(self,data):
         x, y, o, uid, t = unpack('=IIBId', data)
         
+        tank = self.tanks[uid]
+
+        if tank.last_fired and (tank.last_fired > t or t - tank.last_fired < 0.2):
+            return
+        
+        tank.update_o(Directions(o))
+        
         with self.tanks_lock:
-            tank = self.tanks[uid]
-            old_x, old_y, _ = tank.get_pos()
-            self.tanks[uid].move([x-old_x, y-old_y], t)
-            tank.update_o(o)
             tank.fire(t)
 
     def __on_users_positions(self, data):
@@ -163,17 +163,21 @@ class Controller:
         
         self.screen.fill((112, 112, 112))
 
-        with self.tanks_lock and self.player_tank_lock:
-            their_ts  = [tank.rect for tank in self.tanks.values()]
-            their_ids = [uid for uid in self.tanks.keys()]
-            our_b    = [bullet.get_rect() for bullet in self.player_tank.bullets]
+        with self.tanks_lock:
+            if self.id is None or self.id not in self.tanks.keys():
+                self.__restart_draw_timer()
+                return
+
+            our_t = self.tanks[self.id]
+            their_ts  = [tank.rect for tank in self.tanks.values() if tank.id != self.id]
+            their_ids = [uid for uid in self.tanks.keys() if uid != self.id]
+            our_b    = [bullet.get_rect() for bullet in our_t.bullets]
 
             if not self.died.is_set():
-                our_t     = self.player_tank.rect
-                tanks_i = our_t.collidelist(their_ts)
+                tanks_i = our_t.rect.collidelist(their_ts)
                 if tanks_i != -1:
                     print("Reporting kill on {} from collision. My poz: ({}), their: ({})"\
-                    .format(their_ids[tanks_i], self.player_tank.rect.topleft, \
+                    .format(their_ids[tanks_i], our_t.rect.topleft, \
                     self.tanks[their_ids[tanks_i]].rect.topleft))
                     self.__report_kill(their_ids[tanks_i])
                     self.__report_kill(self.gg_c.id)
@@ -198,8 +202,10 @@ class Controller:
                     del their_ts[bullet_i]
 
                     bullet_inds.append(ind)
-                elif not self.player_tank.bullets[ind].update():
-                    bullet_inds.append(ind)
+
+            bullet_inds.reverse()
+            for b_i in bullet_inds:
+                del our_t.bullets[b_i]
 
             for tank in self.tanks.values():
                 inds = []
@@ -213,20 +219,20 @@ class Controller:
 
                 tank.draw()
                 for bullet in tank.bullets:
-                    bullet.draw()
-            
-            bullet_inds.reverse()
-            for b_i in bullet_inds:
-                del self.player_tank.bullets[b_i]
-                
+                    bullet.draw()        
 
             if not self.died.is_set():
-                self.player_tank.draw()
+                our_t.draw()
 
-            for bullet in self.player_tank.bullets:
+            for bullet in our_t.bullets:
                 bullet.draw()
 
             pygame.display.flip()
- 
-        self.timed_draw_r = Timer(0.05, self.__worker_draw_and_report)
+        
+        self.__restart_draw_timer()
+        
+
+
+    def __restart_draw_timer(self):
+        self.timed_draw_r = Timer(0.08, self.__worker_draw_and_report)
         self.timed_draw_r.start()
