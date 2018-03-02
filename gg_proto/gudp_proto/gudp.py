@@ -67,7 +67,8 @@ class Gudp(object):
             )
 
             self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.s.bind((self.ip_addr, self.port))
+            if self.ip_addr != "" and self.port != 0:
+                 self.s.bind((self.ip_addr, self.port))
             #TODO make timeout an argument
             self.s.settimeout(10)
         else:
@@ -115,27 +116,21 @@ class Gudp(object):
         with self.r_s_lock:
             if seq_gt(packet.seq, self.remote_seq):
                 self.remote_seq = packet.seq
-
-        try:
-            with self.send_p_lock:
-                if self.send_pack[packet.ack] is not None:
-                        self.send_pack.pop(packet.ack)
-        except:
-            pass
-
-        with self.r_s_lock:
+            
             self.recv_seq.append(packet.seq)
+
+        with self.send_p_lock:
+            if self.send_pack[packet.ack] is not None:
+                    self.send_pack.pop(packet.ack, None)
 
 
         for i in range(31,-1,-1):
             if 1<<i & packet.ack_bit == 1:
-                try:
-                    with self.send_p_lock:
-                        if self.send_pack[sub_from_seq(packet.ack, i+1)] \
-                            is not None:
-                                self.send_pack.pop(sub_from_seq(packet.ack, i+1))
-                except:
-                    pass
+                with self.send_p_lock:
+                    if self.send_pack[sub_from_seq(packet.ack, i+1)] \
+                        is not None:
+                            self.send_pack.pop(sub_from_seq(packet.ack, i+1), None)
+
         if p is None:
             return (packet.data, addr)
         else:

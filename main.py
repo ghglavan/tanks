@@ -4,41 +4,15 @@ import sys
 import threading
 
 from tank import Tank,Bullet
-
-def test(bullet):
-    return bullet.update()
-
-def update_bullets(bullets, tanks):
-    print("Updating: {}".format(len(bullets)))
-    bullets_ins = []
-    tanks_ins = []
-    for ind, bullet in enumerate(bullets):
-        collided = False
-        for i,tank in enumerate(tanks):
-            if bullet.get_rect().colliderect(tank.get_rect()):
-                bullets_ins.append(ind)
-                tanks_ins.append(i)
-                collided = True
-                break
-        
-        if collided:
-            continue
-
-        if not test(bullet):
-            bullets_ins.append(ind)
-    
-    for ind in bullets_ins:
-        del bullets[ind]
-
-    for ind in tanks_ins:
-        del tanks[ind]
-
-    threading.Timer(0.02, update_bullets, [bullets, tanks]).start()
-
+from controller import Controller
 
 def main():
     size = width, height = 320, 240
     gray = 112, 112, 112
+
+    server  = ("127.0.0.1", 8080)
+    client  = (""         , 0   )
+    prot_id = 1
 
     keys_down = {
         pygame.K_SPACE : False, 
@@ -58,26 +32,25 @@ def main():
         pygame.K_DOWN   : 1,
     }
 
-    is_space_down = False
-    
-    tanks = []
-    bullets = []
-    update_bullets(bullets, tanks)
-
-    bullet_rect_dimentions = (3,3)
 
     screen = pygame.display.set_mode(size)
     pygame.key.set_repeat(20,20)
 
     green_tank = pygame.image.load("green_t.png")
-    brown_tank = pygame.image.load("brown_t.png")    
-    g_tank = Tank(green_tank, screen, bullet_rect_dimentions)
-    b_tank = Tank(brown_tank, screen, bullet_rect_dimentions)
+    brown_tank = pygame.image.load("brown_t.png")
 
-    tanks.append(g_tank)
-    tanks.append(b_tank)
 
-    while 1:
+    game_controller = Controller(screen,
+                                 green_tank, 
+                                 brown_tank, 
+                                 prot_id, 
+                                 client, 
+                                 server)
+
+    game_controller.start()
+
+    while True:
+        #print("looping():D")
         for event in pygame.event.get():
             if event.type == pygame.QUIT: sys.exit()
             if (event.type != pygame.KEYDOWN) and \
@@ -97,22 +70,12 @@ def main():
             for ev,bo in keys_down.items():
                 if bo:
                     if ev in keys_movement_x:
-                        g_tank.move_x(keys_movement_x[ev])
+                        game_controller.report_update(keys_movement_x[ev], 0)
                     if ev in keys_movement_y:
-                        g_tank.move_y(keys_movement_y[ev])
+                        game_controller.report_update(0, keys_movement_y[ev])
             
             if event.key == pygame.K_SPACE and not keys_down[event.key]:
-                bullets.append(g_tank.fire())
-
-        screen.fill(gray)
-
-        for tank in tanks:
-            tank.draw()
-
-        for bullet in bullets:
-            bullet.draw()
-
-        pygame.display.flip()
+                game_controller.report_fire()
 
 if __name__ == "__main__":
     main()
