@@ -114,9 +114,10 @@ class Controller:
                                 )
 
     def on_new_user(self, data):
-        self.create_tank(data)
+        self.tanks[data["uid"]] = self.create_tank(data)
 
     def __on_new_user(self, data):
+        print("Got new user")
         x, y, o, uid = unpack('=IIBI', data)
 
         self.last_user_updates[uid] = time()
