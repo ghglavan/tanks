@@ -197,7 +197,7 @@ class Controller:
 
         self.last_user_fire[uid] = t
 
-        e_d = {"o": o, "uid":uid}
+        e_d = {"o": o, "uid":uid, "t": t}
 
         e = pygame.event.Event(server_update_event,{"g_type": "fire","data": e_d})
 
