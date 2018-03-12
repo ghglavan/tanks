@@ -132,7 +132,12 @@ class Controller:
     
     def on_user_update(self, data):
 
-        tank = self.tanks[data["uid"]]
+        t_id = data["uid"]
+
+        if t_id not in self.tanks.keys():
+            return
+
+        tank = self.tanks[t_id]
 
         old_x, old_y, _ = tank.get_pos()
         o = Directions(data["o"])
