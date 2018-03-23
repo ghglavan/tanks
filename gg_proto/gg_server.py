@@ -182,7 +182,7 @@ class GGServer:
         def pack_client(user):
             return pack("=IIBI", user['x'], user['y'], user['o'], user['id'])
 
-        clients_s = pack("=B", int(MessageType.UsersPositios))
+        clients_s = pack("=B", int(MessageType.UsersPositions))
         
         packed_clients = "".encode()
         for client in self.clients.values():
@@ -201,7 +201,7 @@ class GGServer:
   
 
     def __recv_working(self):
-        while True:
+        while not self.r_w_e.is_set():
             (msg, addr) = self.gudp_s.recv()
             
             if msg is None or len(msg) < 2:
@@ -214,6 +214,3 @@ class GGServer:
 
             if MessageType(m_type) in self.hooks:
                 self.hooks[m_type](data, addr)
-
-            if self.r_w_e.is_set():
-                return

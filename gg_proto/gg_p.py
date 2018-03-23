@@ -12,5 +12,5 @@ class MessageType(IntEnum):
     UsersUpdate      = 4
     UserDisconnected = 5
     UserKilled       = 6
-    UsersPositios    = 7
+    UsersPositions    = 7
     ServerApprove    = 8

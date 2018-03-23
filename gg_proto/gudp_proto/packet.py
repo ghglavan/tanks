@@ -51,4 +51,8 @@ def add_to_seq(s, to_add = 1):
     return (s + to_add) & _u_32_mask
 
 def sub_from_seq(s, to_sub = 1):
-    return (s - to_sub) & _u_32_mask
+    subed =  (s - to_sub) & _u_32_mask
+    if subed > 32768:
+        subed = ((_u_32_mask - subed) % 32 )
+
+    return subed

@@ -62,7 +62,7 @@ class GGClient:
         self.r_w_t.start()
 
     def __recv_working(self):
-        while True:
+        while not self.r_w_e.is_set():
             (msg, addr) = self.gudp_c.recv()
             
             if msg is None or len(msg) < 2:
@@ -76,5 +76,4 @@ class GGClient:
             if MessageType(m_type) in self.hooks:
                 self.hooks[m_type](data)
 
-            if self.r_w_e.is_set():
-                return
+            

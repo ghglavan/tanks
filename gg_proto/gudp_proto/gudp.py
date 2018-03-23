@@ -25,14 +25,35 @@ import threading
 import struct
 import sys
 
-from .packet import Packet,seq_gt,add_to_seq,sub_from_seq
-from .gudp_q import GudpQ
+from queue import Queue
+from time  import time
 
+from .packet import Packet,seq_gt,add_to_seq,sub_from_seq
+
+class Fixed_Q(object):
+    def __init__(self, len):
+        self.len  = len
+        self.size = 0
+        self.q    = []
+
+    def push(self, x):
+        if self.size == self.len:
+            self.q.pop()
+            self.size -= 1
+        
+        self.q.insert(0, x)
+        self.size += 1
+
+    def in_q(self, x):
+        return x in self.q
 
 
 class Gudp(object):
 
     #TODO: make ip_addr,port and s_ip_addr, s_port tuples 
+
+    MAX_Q_SIZE = 120
+    RESEND_INTERVAL = 0.5
 
     def __init__(self, 
             proto_id  = 1, 
@@ -51,7 +72,7 @@ class Gudp(object):
 
         self.proto_id   = proto_id
 
-        self.recv_seq   = []
+        self.recv_seq   = Fixed_Q(32)
 
         self.seq      = 100
 
@@ -71,7 +92,7 @@ class Gudp(object):
         else:
             self.s = s_sock
 
-        self.gudpq   = GudpQ(self.proto_id)
+        self.gudp_sendq = Queue(Gudp.MAX_Q_SIZE)  
 
         self.s_w_ctl  = threading.Thread(target=self.__send_worker)
         self.s_w_s_ev = threading.Event()
@@ -89,6 +110,7 @@ class Gudp(object):
         self.s_w_ctl.join()
 
     def recv(self, p: Packet = None):
+
         
         if p is None:
             try:
@@ -98,6 +120,7 @@ class Gudp(object):
             
             if addr != (self.s_ip_addr, self.s_port):
                 return self.recv()
+
 
             packet = Packet()
             try:
@@ -110,17 +133,18 @@ class Gudp(object):
         else:
             packet = p
             
-        
+
         if seq_gt(packet.seq, self.remote_seq):
             self.remote_seq = packet.seq
         
-        self.recv_seq.append(packet.seq)
+        self.recv_seq.push(packet.seq)
 
         with self.send_p_lock:
             if packet.ack in self.send_pack.keys():
-                    self.send_pack.pop(packet.ack, None)
+                    self.send_pack.pop(packet.ack, None)     
 
-            for i in range(31,-1,-1):
+
+            for i in range(0, 32):
                 if 1<<i & packet.ack_bit == 1:
                     if sub_from_seq(packet.ack, i+1) in self.send_pack.keys():
                             self.send_pack.pop(sub_from_seq(packet.ack, i+1), None)
@@ -140,13 +164,11 @@ class Gudp(object):
 
         seq_mask = 0
 
-        for s in self.recv_seq:
-            if seq_gt(self.remote_seq, s):
+        for s in range(self.remote_seq - self.recv_seq.len, self.remote_seq):
+            if self.recv_seq.in_q(s):
                 subed = sub_from_seq(self.remote_seq, s)
-                if subed <= 31:
-                    seq_mask = seq_mask | 1<<subed
-                elif subed > 32768:
-                    seq_mask = seq_mask | 1<<((0xffffffff - subed) % 32 )
+                seq_mask = seq_mask | 1<<(subed -1)
+            
             
         packet.ack_bit = seq_mask
 
@@ -156,34 +178,48 @@ class Gudp(object):
         with self.send_p_lock:
             self.send_pack[packet.seq] = packet
 
-        self.gudpq.add_to_q(packet)
-        
-
+        try:
+            self.gudp_sendq.put_nowait(packet)
+        except:
+            print("[GUDP] QUEUE FULL!! Maybe try a larger size")
+            exit(1)
 
 
     def __resend(self):
         with self.send_p_lock:
             for p in self.send_pack.values():
-                self.gudpq.add_to_q(p)
+                try:
+                    self.gudp_sendq.put_nowait(p)
+                except:
+                    print("[GUDP] QUEUE FULL!! Maybe try a larger size ")
+                    exit(1)
             
-        self.send_pack = {}
+            self.send_pack = {}
 
-        self.t = threading.Timer(1, self.__resend)
-        self.t.start()
                 
 
     def __send_worker(self):
-        while True:
+        last_resend = time()
 
-            packet = self.gudpq.get_from_q()
+        while not self.s_w_s_ev.is_set():
+            now = time()
+
+            if now - last_resend >= Gudp.RESEND_INTERVAL:
+                self.__resend()
+                last_resend = now
+            
+
+            try:
+                packet = self.gudp_sendq.get_nowait()
+            except:
+                continue
+
             if packet is not None:
                 self.__send(packet.pack())
 
             #TODO: if there are still packets in proto_q.. do we
             # want to send them when the gudp object is destructed?
 
-            if self.s_w_s_ev.is_set():
-                return
 
     def __send(self, message):
         self.s.sendto(message, 

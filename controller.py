@@ -1,10 +1,14 @@
+import pygame
+import sys
+
 from gg_proto import GGClient, MessageType
-from threading import Lock, Timer, Event
+from threading import Event, Thread
 from tank import Tank
 from struct import pack,unpack
 from directions import Directions
 from time import time
-import pygame
+
+
 
 update_screen_event = pygame.USEREVENT + 3
 server_update_event = pygame.USEREVENT + 2
@@ -18,12 +22,12 @@ class Controller:
                 proto_id, 
                 addr, 
                 s_addr,
+                pygame_q,
                 bulled_dims = (3,3),
                 delay = 0.09):
         
         self.gg_c               = GGClient(proto_id, addr, s_addr)
         self.tanks              = {}
-        self.tanks_lock         = Lock()
         self.screen             = screen
         self.died               = Event()
         self.p_tank_img         = p_tank_i
@@ -31,12 +35,19 @@ class Controller:
         self.bullet_dimentions  = bulled_dims
         self.id                 = None
 
-        self.last_user_updates = {}
-        self.last_user_fire    = {}
-        self.delay = delay
+        self.pygame_q           = pygame_q
+
+        self.last_user_updates  = {}
+        self.last_user_fire     = {}
+        self.delay              = delay
+
+
+        self.p_e_queuer         = Thread(target=self.__pygame_e_quewer_w)
+        self.p_queuer_stop_e    = Event()
 
     def __del__(self):
         self.__disconnect()
+        self.p_queuer_stop_e.set()
 
     def start(self):
         self.gg_c.add_hook(MessageType.UserConnected, self.__on_new_user)
@@ -44,10 +55,27 @@ class Controller:
         self.gg_c.add_hook(MessageType.UsersUpdate, self.__on_user_update)
         self.gg_c.add_hook(MessageType.UserDisconnected, self.__on_user_kill_disc)
         self.gg_c.add_hook(MessageType.UserKilled, self.__on_user_kill_disc)
-        self.gg_c.add_hook(MessageType.UsersPositios, self.__on_users_positions)
+        self.gg_c.add_hook(MessageType.UsersPositions, self.__on_users_positions)
 
         self.__connect()
+        self.p_e_queuer.start()
 
+
+    def __pygame_e_quewer_w(self):
+        while not self.p_queuer_stop_e.is_set():
+            for e in pygame.event.get():
+                if e is None:
+                    continue
+
+                try:
+                    self.pygame_q.put_nowait(e)
+                except:
+                    print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+                    sys.exit(1)
+    
+
+    def get_event(self):
+        return self.pygame_q.get()
 
     def report_update(self, x, y):
         if self.died.is_set():
@@ -127,9 +155,10 @@ class Controller:
         e = pygame.event.Event(server_update_event,{"g_type": "new","data": e_d})
         
         try:
-            pygame.event.post(e)
+            self.pygame_q.put_nowait(e)
         except:
-            pass
+            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            sys.exit(1)
     
     def on_user_update(self, data):
 
@@ -141,7 +170,11 @@ class Controller:
         tank = self.tanks[t_id]
 
         old_x, old_y, _ = tank.get_pos()
-        o = Directions(data["o"])
+
+        print("-----------tankk is at {}, updating to {}".format( (old_x, old_y), (data["x"], data["y"])))
+        if (old_x, old_y) == (data["x"], data["y"]):
+            print("egale")
+            return
 
         tank.move([data["x"]-old_x, data["y"]-old_y], data["t"])
 
@@ -167,10 +200,13 @@ class Controller:
 
         e = pygame.event.Event(server_update_event,{"g_type": "upd","data": e_d})
         
+        self.last_user_updates[uid] = t
+
         try:
-            pygame.event.post(e)
+            self.pygame_q.put_nowait(e)
         except:
-            pass
+            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            sys.exit(1)
     
         
 
@@ -202,9 +238,10 @@ class Controller:
         e = pygame.event.Event(server_update_event,{"g_type": "fire","data": e_d})
 
         try:
-            pygame.event.post(e)
+            self.pygame_q.put_nowait(e)
         except:
-            pass
+            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            sys.exit(1)
 
 
     def on_users_positions(self, data):
@@ -217,22 +254,24 @@ class Controller:
         (n_clients, ) = unpack("=I", data[:4])
         data = data[4:]
 
-        with self.tanks_lock:
-            for _ in range(0, n_clients):
+    
+        for _ in range(0, n_clients):
 
-                x, y, o, uid = unpack("=IIBI", data[:13])
-                
-                self.last_user_updates[uid] = time()
+            x, y, o, uid = unpack("=IIBI", data[:13])
+            
+            self.last_user_updates[uid] = time()
 
-                e_d = {"x":x, "y":y, "o":o, "uid":uid}
-                
-                e = pygame.event.Event(server_update_event,{"g_type": "pos","data": e_d})
+            e_d = {"x":x, "y":y, "o":o, "uid":uid}
+            
+            e = pygame.event.Event(server_update_event,{"g_type": "pos","data": e_d})
 
-                try:
-                    pygame.event.post(e)
-                except:
-                    pass
-                data = data[13:]
+            try:
+                self.pygame_q.put_nowait(e)
+            except:
+                print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+                sys.exit(1)
+
+            data = data[13:]
 
 
 
@@ -254,9 +293,10 @@ class Controller:
         e = pygame.event.Event(server_update_event,{"g_type": "kill","data": e_d})
         
         try:
-            pygame.event.post(e)
+            self.pygame_q.put_nowait(e)
         except:
-            pass
+            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            sys.exit(1)
         
 
     def worker_draw_and_report(self):
