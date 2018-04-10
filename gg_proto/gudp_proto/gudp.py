@@ -53,7 +53,7 @@ class Gudp(object):
     #TODO: make ip_addr,port and s_ip_addr, s_port tuples 
 
     MAX_Q_SIZE = 120
-    RESEND_INTERVAL = 0.5
+    RESEND_INTERVAL = 1
 
     def __init__(self, 
             proto_id  = 1, 
@@ -105,7 +105,7 @@ class Gudp(object):
         self.close()
 
     def close(self):
-        self.t.cancel()
+        #self.t.cancel()
         self.s_w_s_ev.set()
         self.s_w_ctl.join()
 
@@ -186,15 +186,21 @@ class Gudp(object):
 
 
     def __resend(self):
+
+        sent = False
+
         with self.send_p_lock:
             for p in self.send_pack.values():
                 try:
                     self.gudp_sendq.put_nowait(p)
+                    sent = True
                 except:
                     print("[GUDP] QUEUE FULL!! Maybe try a larger size ")
                     exit(1)
             
             self.send_pack = {}
+        
+        return sent
 
                 
 
@@ -205,7 +211,9 @@ class Gudp(object):
             now = time()
 
             if now - last_resend >= Gudp.RESEND_INTERVAL:
-                self.__resend()
+                #if not self.__resend():
+                #    self.send(b"")
+                self.__resend()    
                 last_resend = now
             
 

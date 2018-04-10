@@ -1,5 +1,5 @@
 import pygame
-from directions import Directions
+from gg_proto import Directions
 from bullet import Bullet
 from time import time
 

@@ -1,7 +1,9 @@
 from gg_proto import GGServer
 
+from constants import *
+
 def run():
-    srv = GGServer(1,("0.0.0.0", 8080))
+    srv = GGServer(prot_id, servers[0], main_server)
 
     srv.start()
     srv.join()

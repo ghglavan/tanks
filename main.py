@@ -6,18 +6,12 @@ import threading
 from tank import Tank,Bullet
 from controller import Controller, update_screen_event, server_update_event
 
-from queue import Queue
+from constants import *
 
-EVENT_Q_SIZE = 200
+from queue import Queue
 
 
 def main():
-    size = width, height = 320, 240
-    gray = 112, 112, 112
-
-    server  = ("127.0.0.1", 8080)
-    client  = (""         , 0   )
-    prot_id = 1
 
     keys_down = {
         pygame.K_SPACE : False, 
@@ -62,7 +56,7 @@ def main():
                                  brown_tank, 
                                  prot_id, 
                                  client, 
-                                 server,
+                                 main_server,
                                  event_q)
 
     pygame.time.set_timer(update_screen_event, 300)
@@ -95,6 +89,11 @@ def main():
                 game_controller.on_user_kill_disc(event.data)
             
             continue
+
+        if event.type != pygame.KEYDOWN and \
+           event.type != pygame.KEYUP:
+           
+           continue
 
         if event.key not in keys_down:
             continue

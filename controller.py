@@ -1,11 +1,10 @@
 import pygame
 import sys
 
-from gg_proto import GGClient, MessageType
+from gg_proto import GGClient, MessageType, Directions
 from threading import Event, Thread
 from tank import Tank
 from struct import pack,unpack
-from directions import Directions
 from time import time
 
 
@@ -132,13 +131,17 @@ class Controller:
         self.gg_c.send(m_t)
 
     def __connect(self):
+        print("Connecting to main server")
         self.gg_c.connect()
-        self.id = self.gg_c.wait_id()
+        print("Connected")
+        x, y, o, self.id = self.gg_c.wait_id()
         self.last_user_updates[self.id] = 0
         self.tanks[self.id] = Tank(self.id,
                                 self.p_tank_img,
                                 self.screen,
                                 self.bullet_dimentions,
+                                [x, y],
+                                Directions(o)
                                 )
 
     def on_new_user(self, data):
@@ -177,6 +180,7 @@ class Controller:
             return
 
         tank.move([data["x"]-old_x, data["y"]-old_y], data["t"])
+        tank.update_o(data["o"])
 
     def __on_user_update(self,data):
         x, y, o, uid, t = unpack('=IIBId', data)

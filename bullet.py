@@ -1,4 +1,4 @@
-from directions import Directions
+from gg_proto import Directions
 import pygame
 
 
