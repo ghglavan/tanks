@@ -1,0 +1,9 @@
+[
+  "servers_updates_test.py::test_knn_update_get",
+  "servers_updates_test.py::test_random_get[4]",
+  "servers_updates_test.py::test_random_get[5]",
+  "servers_updates_test.py::test_random_get[6]",
+  "servers_updates_test.py::test_random_get[7]",
+  "servers_updates_test.py::test_random_get[8]",
+  "servers_updates_test.py::test_kmeans_update_get"
+]

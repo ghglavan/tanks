@@ -41,7 +41,7 @@ class Controller:
         self.delay              = delay
 
 
-        self.p_e_queuer         = Thread(target=self.__pygame_e_quewer_w)
+        self.p_e_queuer         = Thread(target=self.__pygame_e_queuer_w)
         self.p_queuer_stop_e    = Event()
 
     def __del__(self):
@@ -60,7 +60,7 @@ class Controller:
         self.p_e_queuer.start()
 
 
-    def __pygame_e_quewer_w(self):
+    def __pygame_e_queuer_w(self):
         while not self.p_queuer_stop_e.is_set():
             for e in pygame.event.get():
                 if e is None:
