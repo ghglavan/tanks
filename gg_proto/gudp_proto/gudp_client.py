@@ -22,5 +22,9 @@ class Client:
     def send(self, data):
         self.gudp_c.send(data)
     
+    def change_addr(self, s_addr, s_port):
+        self.gudp_c.s_ip_addr = s_addr
+        self.gudp_c.s_port = s_port
+
     def recv(self):
         return self.gudp_c.recv()

@@ -6,6 +6,8 @@ from struct import pack, unpack
 from time import time, localtime
 from math import sqrt
 
+from .servers_update_controllers import KNNServersUpdate, RandomServersUpdate, KMeansServersUpdate
+
 class GameService(GGServer):
 
     BULLET_SPEED   = 1
@@ -39,12 +41,12 @@ class GameService(GGServer):
 
         def __on_server_approve(data, addr):
             self.id, = unpack('=I', data)
-            print("Connected to main_service. Got id {}".format(self.id))
+            print("[Game Service]: -Connected to main_service. Got id {}".format(self.id))
             self.is_id_set.set()
 
         self.add_hook(MessageType.ServerApprove, __on_server_approve)
 
-        print("Connecting to main_service...")
+        print("[Game Service]: -Connecting to main_service...")
         m_t = pack('=B',int(MessageType.ServerConnect))
         self.main_service_c.send(m_t)
         self.__main_server_recv_id()
@@ -59,7 +61,7 @@ class GameService(GGServer):
     def __on_disconnect(self, data, addr):
         c_id = self.clients[addr]["id"]
         
-        print("Client {} with addr {} diconnected.".format(c_id, addr))
+        print("[Game Service]: -Client {} with addr {} diconnected.".format(c_id, addr))
 
         self.clients.pop(addr, None)
         
@@ -79,7 +81,7 @@ class GameService(GGServer):
         def do_check_kill(x, y, o):
             #TODO: check if kill is valid
             if l > time():
-                print("[Kill] Error killing(ts too big): {}, now: {}".format(l,\
+                print("[Game Service]: -[Kill] Error killing(ts too big): {}, now: {}".format(l,\
                 time()))
                 return False
             return True
@@ -91,14 +93,14 @@ class GameService(GGServer):
             m_t = pack("=BB", int(MessageType.RequestPosition), k_id)
 
             def __on_requested_positions(x, y, o, addr):
-                if do_check_kill():
+                if do_check_kill(x, y, o):
                     self.clients.pop(k_addr, None)
                     m_t = pack('=BI', int(MessageType.UserKilled), killer["id"]) + data
         
                     self.main_service_c.send(m_t) 
 
 
-        print("User with addr {} reported a kill on {} with addr {}"\
+        print("[Game Service]: -User with addr {} reported a kill on {} with addr {}"\
         .format(addr, k_id, k_addr)) 
 
         self.clients.pop(k_addr, None)
@@ -115,11 +117,11 @@ class GameService(GGServer):
         c_lf = self.clients[addr]["lf"]
         c_id = self.clients[addr]["id"]
 
-        print("User {} with addr {} reported that he fired"\
+        print("[Game Service]: -User {} with addr {} reported that he fired"\
         .format(c_id, addr))
 
         if l < c_lf or l - c_lf < 2 or l > time():
-            print("Error registering fire c_lf: {}, l: {}"\
+            print("[Game Service]: -Error registering fire c_lf: {}, l: {}"\
             .format(c_lf, l))
             return
 
@@ -141,11 +143,11 @@ class GameService(GGServer):
         x, y, o, l = unpack('=IIBd', data)
         old_ud = self.clients[addr]["lu"]
 
-        print("User {} with addr {} reported a position update to {}"\
+        print("[Game Service]: -User {} with addr {} reported a position update to {}"\
         .format(self.clients[addr]["id"], addr, (x,y,Directions(o))))
 
         if old_ud > l or l - old_ud < 0.01 or l > time():
-            print("Error updating poz old_ud: {}, l: {}, {}, {}"\
+            print("[Game Service]: -Error updating poz old_ud: {}, l: {}, {}, {}"\
             .format(old_ud, l, l-old_ud, l-old_ud < 0.1))
             return
 
@@ -164,7 +166,7 @@ class GameService(GGServer):
         
         x, y, o, u_id, l = unpack("=IIBId", data)
 
-        print("Client with addr {} connected. Got id {}"\
+        print("[Game Service]: -Client with addr {} connected. Got id {}"\
         .format(addr, u_id))
 
         poz = { "x" : x,
@@ -183,7 +185,7 @@ class GameService(GGServer):
     def __main_server_recv_id(self):
         while True:
             (msg, addr) = self.main_service_c.recv()
-            print("Got {} from {}".format(msg, addr))
+            print("[Game Service]: -Got {} from {}".format(msg, addr))
 
             if msg is None or len(msg) < 1:
                 continue

@@ -44,8 +44,11 @@ def main():
 
     
 
-    green_tank = pygame.image.load("green_t.png")
-    brown_tank = pygame.image.load("brown_t.png")
+    green_tank = pygame.image.load("green_t2.png")
+    brown_tank = pygame.image.load("blue_t.png")
+
+
+    bg = pygame.image.load("bg.png")
 
     event_q = Queue(EVENT_Q_SIZE)
 
@@ -53,11 +56,13 @@ def main():
 
     game_controller = Controller(screen,
                                  green_tank, 
-                                 brown_tank, 
+                                 brown_tank,
+                                 bg, 
                                  prot_id, 
                                  client, 
                                  main_server,
-                                 event_q)
+                                 event_q,
+                                 bullet_dims)
 
     pygame.time.set_timer(update_screen_event, 300)
 

@@ -57,11 +57,21 @@ class GGClient:
 
         self.main_service_c.send(m_t)
 
-    def __on_user_id(self, data):
 
-        (self.x, self.y, self.o, self.id, s1, s2, s3, s4, self.s_port) = unpack("=IIBIBBBBI",data)
-        self.s_addr = str(s1) + "." + str(s2) + "." + str(s3) + "." + str(s4)
-        
+    def reconnect_to_server(self, s_addr, s_port):
+        self.s_addr = s_addr
+        self.s_port = s_port
+
+        self.gudp_c.change_addr(s_addr, s_port)
+
+        print("reconnecting gudp_c to {}-{}".format(self.s_addr, self.s_port) )
+        m_t = pack("=BIIBId", int(MessageType.UserRedirected), self.x, self.y, self.o, self.id, time())
+        self.gudp_c.send(m_t)
+
+    def connect_to_server(self, s_addr, s_port):
+        self.s_addr = s_addr
+        self.s_port = s_port
+
         self.gudp_c = Client(self.proto_id,
                             self.ip_addr,
                             self.port,
@@ -69,9 +79,15 @@ class GGClient:
                             self.s_port)
         
         print("connecting gudp_c to {}-{}".format(self.s_addr, self.s_port) )
-
         m_t = pack("=BIIBId", int(MessageType.UserConnected), self.x, self.y, self.o, self.id, time())
         self.gudp_c.send(m_t)
+
+    def __on_user_id(self, data):
+
+        (self.x, self.y, self.o, self.id, s1, s2, s3, s4, s_port) = unpack("=IIBIBBBBI",data)
+        s_addr = str(s1) + "." + str(s2) + "." + str(s3) + "." + str(s4)
+        
+        self.connect_to_server(s_addr, s_port)
 
         self.id_set.set()
 

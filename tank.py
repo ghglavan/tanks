@@ -12,7 +12,7 @@ class Tank:
                     bullet_dimentions,
                     tank_position=[0,0],
                     gun_o = Directions.UP, 
-                    bullet_speed=1,
+                    bullet_speed=5,
                     speed=1):
 
         self.rect = image.get_rect()

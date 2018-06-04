@@ -18,6 +18,7 @@ class Controller:
                 screen,
                 p_tank_i,
                 e_tank_i, 
+                bg,
                 proto_id, 
                 addr, 
                 s_addr,
@@ -35,6 +36,8 @@ class Controller:
         self.id                 = None
 
         self.pygame_q           = pygame_q
+
+        self.bg = bg
 
         self.last_user_updates  = {}
         self.last_user_fire     = {}
@@ -56,9 +59,22 @@ class Controller:
         self.gg_c.add_hook(MessageType.UserKilled, self.__on_user_kill_disc)
         self.gg_c.add_hook(MessageType.UsersPositions, self.__on_users_positions)
 
+        self.gg_c.add_hook(MessageType.ConnectTo, self.__connect_to)
+
         self.__connect()
         self.p_e_queuer.start()
 
+
+    def __connect_to(self, data):
+
+        s1, s2, s3, s4, s_port = unpack("=BBBBI",data)
+        s_addr = str(s1) + "." + str(s2) + "." + str(s3) + "." + str(s4)
+
+
+        print("[Controller]: -reconnecting to {}".format((s_addr, s_port)))
+
+        self.__disconnect()
+        self.gg_c.connect_to_server(s_addr, s_port)
 
     def __pygame_e_queuer_w(self):
         while not self.p_queuer_stop_e.is_set():
@@ -69,7 +85,7 @@ class Controller:
                 try:
                     self.pygame_q.put_nowait(e)
                 except:
-                    print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+                    print("[Controller]: -pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
                     sys.exit(1)
     
 
@@ -87,7 +103,7 @@ class Controller:
             return
         
         t_x, t_y, t_o = tank.s_move([x, y])
-        print("tank is at {}, updating with {}".format(tank.rect.topleft, (t_x, t_y)))
+        print("[Controller]: -tank is at {}, updating with {}".format(tank.rect.topleft, (t_x, t_y)))
 
 
         m_t = pack("=BIIBd", int(MessageType.UsersUpdate), t_x, 
@@ -122,18 +138,19 @@ class Controller:
         self.gg_c.send(m_t)
 
     def __report_kill(self, k_id):
-        print("Reporting kill on {}".format(k_id))
+        print("[Controller]: -Reporting kill on {}".format(k_id))
         m_t = pack("=BId", int(MessageType.UserKilled), k_id, time())
         self.gg_c.send(m_t)
 
     def __disconnect(self):
+        print("[Controller]: -Reporting")
         m_t = pack("=I", int(MessageType.UserDisconnected))
         self.gg_c.send(m_t)
 
     def __connect(self):
-        print("Connecting to main server")
+        print("[Controller]: -Connecting to main server")
         self.gg_c.connect()
-        print("Connected")
+        print("[Controller]: -Connected")
         x, y, o, self.id = self.gg_c.wait_id()
         self.last_user_updates[self.id] = 0
         self.tanks[self.id] = Tank(self.id,
@@ -148,7 +165,7 @@ class Controller:
         self.tanks[data["uid"]] = self.create_tank(data)
 
     def __on_new_user(self, data):
-        print("Got new user")
+        print("[Controller]: -Got new user")
         x, y, o, uid = unpack('=IIBI', data)
 
         self.last_user_updates[uid] = time()
@@ -160,7 +177,7 @@ class Controller:
         try:
             self.pygame_q.put_nowait(e)
         except:
-            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            print("[Controller]: -pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
             sys.exit(1)
     
     def on_user_update(self, data):
@@ -174,9 +191,9 @@ class Controller:
 
         old_x, old_y, _ = tank.get_pos()
 
-        print("-----------tankk is at {}, updating to {}".format( (old_x, old_y), (data["x"], data["y"])))
+        print("[Controller]: ------------tankk is at {}, updating to {}".format( (old_x, old_y), (data["x"], data["y"])))
         if (old_x, old_y) == (data["x"], data["y"]):
-            print("egale")
+            print("[Controller]: -egale")
             return
 
         tank.move([data["x"]-old_x, data["y"]-old_y], data["t"])
@@ -185,19 +202,19 @@ class Controller:
     def __on_user_update(self,data):
         x, y, o, uid, t = unpack('=IIBId', data)
 
-        print("User update")
+        print("[Controller]: -User update")
         if uid not in self.last_user_updates.keys():
-            print("r 1")
+            print("[Controller]: -r 1")
             return
 
         last_update = self.last_user_updates[uid]
 
         if last_update > t:
-            print("r 2")
+            print("[Controller]: -r 2")
             return
 
         if t-last_update < self.delay:
-            print("r 3")
+            print("[Controller]: -r 3")
             return
 
         e_d = {"x":x, "y":y, "o":o, "uid":uid, "t":t}
@@ -209,7 +226,7 @@ class Controller:
         try:
             self.pygame_q.put_nowait(e)
         except:
-            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            print("[Controller]: -pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
             sys.exit(1)
     
         
@@ -244,16 +261,16 @@ class Controller:
         try:
             self.pygame_q.put_nowait(e)
         except:
-            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            print("[Controller]: -pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
             sys.exit(1)
 
 
     def on_users_positions(self, data):
-        print("Got one user x: {}, y:{}".format(data["x"],data["y"]))
+        print("[Controller]: -Got one user x: {}, y:{}".format(data["x"],data["y"]))
         self.tanks[data["uid"]] = self.create_tank(data)
 
     def __on_users_positions(self, data):
-        print("Got users positions with {}".format(len(data)))
+        print("[Controller]: -Got users positions with {}".format(len(data)))
         
         (n_clients, ) = unpack("=I", data[:4])
         data = data[4:]
@@ -272,7 +289,7 @@ class Controller:
             try:
                 self.pygame_q.put_nowait(e)
             except:
-                print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+                print("[Controller]: -pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
                 sys.exit(1)
 
             data = data[13:]
@@ -299,13 +316,13 @@ class Controller:
         try:
             self.pygame_q.put_nowait(e)
         except:
-            print("pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
+            print("[Controller]: -pygameq is full with {}. Maybe try a different size".format(self.pygame_q.qsize()))
             sys.exit(1)
         
 
     def worker_draw_and_report(self):
         
-        self.screen.fill((112, 112, 112))
+        self.screen.blit(self.bg, (0,0))
 
         if self.id is None or self.id not in self.tanks.keys():
             return
@@ -318,7 +335,7 @@ class Controller:
         if not self.died.is_set():
             tanks_i = our_t.rect.collidelist(their_ts)
             if tanks_i != -1:
-                print("Reporting kill on {} from collision. My poz: ({}), their: ({})"\
+                print("[Controller]: -Reporting kill on {} from collision. My poz: ({}), their: ({})"\
                 .format(their_ids[tanks_i], our_t.rect.topleft, \
                 self.tanks[their_ids[tanks_i]].rect.topleft))
                 self.__report_kill(their_ids[tanks_i])
@@ -336,7 +353,7 @@ class Controller:
             bullet_i = bullet.collidelist(their_ts)
 
             if bullet_i != -1:
-                print("Reporting kill from bullets on {}. Got him with bullet {} of {}".format(their_ids[bullet_i], ind, len(our_b)))
+                print("[Controller]: -Reporting kill from bullets on {}. Got him with bullet {} of {}".format(their_ids[bullet_i], ind, len(our_b)))
                 self.__report_kill(their_ids[bullet_i])
                 self.tanks.pop(their_ids[bullet_i], None)
 

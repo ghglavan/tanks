@@ -5,7 +5,7 @@ import pygame
 class Bullet:
     COLOR = (96, 53, 0)
 
-    def __init__(self, screen, rect, direction, speed=1):
+    def __init__(self, screen, rect, direction, speed=6):
         self.screen = screen
         self.rect = rect
         self.direction = direction
