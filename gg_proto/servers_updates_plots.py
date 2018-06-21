@@ -63,8 +63,8 @@ if __name__ == "__main__":
 
     random_conn = RandomServersUpdate(servers)
     #knn_conn = RandomServersUpdate(servers)
-    #knn_conn = KNNServersUpdate(servers, knn_needed_params)
-    knn_conn = KMeansServersUpdate(servers, k_means_needed_params)
+    knn_conn = KNNServersUpdate(servers, knn_needed_params)
+    #knn_conn = KMeansServersUpdate(servers, k_means_needed_params)
     knn_conn2 = KNNServersUpdate(servers, knn_needed_params)
     
     move = [[-10,0], [0,-10], [0,10], [10,0]]
@@ -116,8 +116,8 @@ if __name__ == "__main__":
                 #print(p)
                 #if p[0] < 150 or p[1] < 200:
                 m = [random.randint(-5,5), random.randint(-5,5)]
-                p[0] = (p[0] + m[0])%500
-                p[1] = (p[1] + m[1])%600
+                p[0] = (p[0] + m[0])
+                p[1] = (p[1] + m[1])
                 knn_conn.get_server(p, c)
 
 

@@ -148,6 +148,7 @@ class KNNServersUpdate(ServersUpdateController):
         return server_id[0]
 
     def update_connections(self):
+        '''
         train_X = [x['pos'] for x in self.old_conns.values()]
         train_y = [x['s_id'] for x in self.old_conns.values()]
 
@@ -199,7 +200,7 @@ class KNNServersUpdate(ServersUpdateController):
         self.clients = {}
 
         self.neigh.fit(train_X, train_y)
-        '''
+        
 
 
 class KMeansServersUpdate(ServersUpdateController):
