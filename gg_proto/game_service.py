@@ -25,10 +25,19 @@ class GameService(GGServer):
                                 self.m_ip_addr,
                                 self.m_port)
 
-        self.user_position_hooks = {}
+        self.main_service_hooks = {}
+
+        self.main_service_thread = Thread(target=self.__main_server_recv)
+        self.m_s_t_e = Event()
 
         self.id = None
         self.is_id_set = Event()
+
+    def __del__(self):
+        self.m_s_t_e.set()
+
+    def add_main_service_hook(self, mtype, f):
+        self.main_service_hooks[mtype] = f
 
     def start(self):
         self.add_hook(MessageType.UserConnected, self.__on_client_connect)
@@ -38,18 +47,19 @@ class GameService(GGServer):
         self.add_hook(MessageType.UserKilled, self.__on_killed)
         self._start()
 
+        self.main_service_thread.start()
+
 
         def __on_server_approve(data, addr):
             self.id, = unpack('=I', data)
             print("[Game Service]: -Connected to main_service. Got id {}".format(self.id))
             self.is_id_set.set()
 
-        self.add_hook(MessageType.ServerApprove, __on_server_approve)
+        self.add_main_service_hook(MessageType.ServerApprove, __on_server_approve)
 
         print("[Game Service]: -Connecting to main_service...")
         m_t = pack('=B',int(MessageType.ServerConnect))
         self.main_service_c.send(m_t)
-        self.__main_server_recv_id()
         self.is_id_set.wait()
 
     def __on_request_position(self, data, addr):
@@ -89,24 +99,31 @@ class GameService(GGServer):
 
         killer = self.clients[addr]
 
+        print("[Game Service]: -Got kill request")
+
         if k_addr is None:
             m_t = pack("=BB", int(MessageType.RequestPosition), k_id)
 
-            def __on_requested_positions(x, y, o, addr):
+            def __on_requested_positions(data, addr):
+                uid, x, y, o = unpack('=IIIB', data)
                 if do_check_kill(x, y, o):
-                    self.clients.pop(k_addr, None)
-                    m_t = pack('=BI', int(MessageType.UserKilled), killer["id"]) + data
+                    print("[Game Service]: -User with addr {} reported a kill on {} with addr {} from another server"\
+                    .format(addr, k_id, k_addr)) 
+                    m_t = pack('=BIId', int(MessageType.UserKilled), killer["id"], k_id, l)
         
                     self.main_service_c.send(m_t) 
+                
 
+            self.add_main_service_hook(MessageType.RequestPosition, __on_requested_positions)
 
-        print("[Game Service]: -User with addr {} reported a kill on {} with addr {}"\
-        .format(addr, k_id, k_addr)) 
+        else:
+            print("[Game Service]: -User with addr {} reported a kill on {} with addr {}"\
+            .format(addr, k_id, k_addr)) 
 
-        self.clients.pop(k_addr, None)
+            self.clients.pop(k_addr, None)
 
-        m_t = pack('=BI', int(MessageType.UserKilled), killer["id"]) + data
-        
+            m_t = pack('=BI', int(MessageType.UserKilled), killer["id"]) + data
+            
         self.main_service_c.send(m_t)        
 
 
@@ -182,8 +199,8 @@ class GameService(GGServer):
             self.clients[addr] = poz 
 
 
-    def __main_server_recv_id(self):
-        while True:
+    def __main_server_recv(self):
+        while not self.m_s_t_e.is_set():
             (msg, addr) = self.main_service_c.recv()
             print("[Game Service]: -Got {} from {}".format(msg, addr))
 
@@ -192,6 +209,6 @@ class GameService(GGServer):
             (m_type, ), data = unpack("=B", msg[:1]), msg[1:]
 
 
-            if MessageType(m_type) is MessageType.ServerApprove :
-                self.hooks[m_type](data, addr)
-                break
+            if MessageType(m_type):
+                self.main_service_hooks[m_type](data, addr)
+                

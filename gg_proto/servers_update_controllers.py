@@ -82,8 +82,8 @@ class RandomServersUpdate(ServersUpdateController):
         
 
     def update_connections(self):
-        pass
-
+        self.old_conns = self.clients
+        
 
 
 class KNNServersUpdate(ServersUpdateController):
@@ -148,6 +148,20 @@ class KNNServersUpdate(ServersUpdateController):
         return server_id[0]
 
     def update_connections(self):
+        train_X = [x['pos'] for x in self.old_conns.values()]
+        train_y = [x['s_id'] for x in self.old_conns.values()]
+
+        train_X += self.train_X
+        train_y += self.train_y
+
+        self.old_conns = self.clients
+        self.clients = {}
+
+        print("Updating...Train x: {}, train y: {}\n".format( train_X, train_y))
+        self.neigh.fit(train_X, train_y)
+
+        '''
+        #uncomment this to make the connections distributer evenly
 
         train_X = []
         train_y = self.servers_ids
@@ -185,6 +199,8 @@ class KNNServersUpdate(ServersUpdateController):
         self.clients = {}
 
         self.neigh.fit(train_X, train_y)
+        '''
+
 
 class KMeansServersUpdate(ServersUpdateController):
     def __init__(self, servers_ids, needed_params):
@@ -196,6 +212,8 @@ class KMeansServersUpdate(ServersUpdateController):
         random_state = needed_params["random_state"]
 
         self.random_state = random_state
+
+        self.range = 10
 
         max_x = needed_params['max_x']
         max_y = needed_params['max_y']
@@ -209,7 +227,7 @@ class KMeansServersUpdate(ServersUpdateController):
 
         print("Train x: {}, train y: {}\n".format( self.train_X, self.train_y))
 
-        self.kmeans = KMeans(n_clusters=n_clusters, random_state=random_state).fit(self.train_X)
+        self.kmeans = KMeans(n_clusters=n_clusters, random_state=random_state, init=np.asarray(self.train_X)).fit(self.train_X)
 
 
     def __split(self):
@@ -250,11 +268,41 @@ class KMeansServersUpdate(ServersUpdateController):
         train_X = [x['pos'] for x in self.old_conns.values()]
         train_y = [x['s_id'] for x in self.old_conns.values()]
 
-        train_X += self.train_X
-        train_y += self.train_y
+        train_X = []
+        train_y = self.servers_ids
+
+        n_clients = []
+
+        for server_id in self.servers_ids:
+            p_clients = [x['pos'] for x in self.clients.values() if x['s_id'] == server_id]
+            n_clients.append(len(p_clients))
+
+            x_p = [x[0] for x in p_clients]
+            y_p = [x[1] for x in p_clients]
+            if len(p_clients) is not 0:
+                x = sum(x_p)//len(x_p)
+                y = sum(y_p)//len(y_p)
+                train_X.append([x,y])
+            else:
+                train_X.append([-1,-1])
+
+        client_connected = [x for x in n_clients if x is not 0] is not []
+
+        if client_connected:
+            for c,n in enumerate(n_clients):
+                if n is 0:
+                    i = n_clients.index(max(n_clients))
+                    x = (train_X[i][0] + random.randint(-self.range,self.range)) % self.max_x
+                    y = (train_X[i][1] + random.randint(-self.range,self.range)) % self.max_y
+                    train_X[c] = [x, y]
+
+        else:
+            train_X = self.__split()
 
         self.old_conns = self.clients
         self.clients = {}
+
+        self.kmeans.set_params(init=np.asarray(self.train_X))
 
         print("Updating...Train x: {}, train y: {}\n".format( train_X, train_y))
         self.kmeans.fit(train_X, train_y)

@@ -110,7 +110,7 @@ class MainService(GGServer):
         self.servers_id += 1
 
     def __on_request_position(self, data, addr):
-        u_id = unpack('=B', data)
+        u_id, = unpack('=B', data)
 
         print("[Main Service]: -Server {} requested position of {}".format(addr, u_id))
 
@@ -221,14 +221,8 @@ class MainService(GGServer):
 
         k_addr = self.clients[k_id]["addr"]
 
-        if k_addr != addr:
-            m_t = pack("=BId", int(MessageType.ServerKillUser), k_id, l)
-            self.gudp_s.send_to(m_t, k_addr)
-
-
+        m_t = pack("=BId", int(MessageType.UserKilled), k_id, l)
         for client in self.clients.values(): 
-            m_t = pack("=BId", int(MessageType.UserKilled), k_id, l)
-
             self.gudp_s.send_to(m_t, client["addr"])
 
         self.clients.pop(k_addr, None)

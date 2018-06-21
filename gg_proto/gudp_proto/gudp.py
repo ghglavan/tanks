@@ -190,6 +190,7 @@ class Gudp(object):
         sent = False
 
         with self.send_p_lock:
+            self.send_pack = {}
             for p in self.send_pack.values():
                 try:
                     self.gudp_sendq.put_nowait(p)
@@ -198,7 +199,7 @@ class Gudp(object):
                     print("[GUDP] QUEUE FULL!! Maybe try a larger size ")
                     exit(1)
             
-            self.send_pack = {}
+            
         
         return sent
 

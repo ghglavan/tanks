@@ -64,7 +64,7 @@ class GGClient:
 
         self.gudp_c.change_addr(s_addr, s_port)
 
-        print("reconnecting gudp_c to {}-{}".format(self.s_addr, self.s_port) )
+        #print("reconnecting gudp_c to {}-{}".format(self.s_addr, self.s_port) )
         m_t = pack("=BIIBId", int(MessageType.UserRedirected), self.x, self.y, self.o, self.id, time())
         self.gudp_c.send(m_t)
 
@@ -78,7 +78,7 @@ class GGClient:
                             self.s_addr,
                             self.s_port)
         
-        print("connecting gudp_c to {}-{}".format(self.s_addr, self.s_port) )
+        #print("connecting gudp_c to {}-{}".format(self.s_addr, self.s_port) )
         m_t = pack("=BIIBId", int(MessageType.UserConnected), self.x, self.y, self.o, self.id, time())
         self.gudp_c.send(m_t)
 
@@ -87,6 +87,8 @@ class GGClient:
         (self.x, self.y, self.o, self.id, s1, s2, s3, s4, s_port) = unpack("=IIBIBBBBI",data)
         s_addr = str(s1) + "." + str(s2) + "." + str(s3) + "." + str(s4)
         
+        self.server = (s_addr, s_port)
+
         self.connect_to_server(s_addr, s_port)
 
         self.id_set.set()
@@ -95,11 +97,10 @@ class GGClient:
     def is_id_set(self):
         return self.id_set.is_set()
 
+
     def wait_id(self):
         self.id_set.wait()
-        
-
-        return self.x, self.y, self.o, self.id   
+        return self.x, self.y, self.o, self.id
 
     def __start_recv(self):
         self.r_w_t.start()
@@ -107,7 +108,7 @@ class GGClient:
     def __recv_working(self):
         while not self.r_w_e.is_set():
             (msg, addr) = self.main_service_c.recv()
-            print("Got message {} from {}".format(msg, addr))
+            #print("Got message {} from {}".format(msg, addr))
             if msg is None or len(msg) < 2:
                 continue
 

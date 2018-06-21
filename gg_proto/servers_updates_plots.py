@@ -62,8 +62,9 @@ if __name__ == "__main__":
     servers = [0,1,2,3]
 
     random_conn = RandomServersUpdate(servers)
-    knn_conn = KNNServersUpdate(servers, knn_needed_params)
-    knn_conn3 = KMeansServersUpdate(servers, k_means_needed_params)
+    #knn_conn = RandomServersUpdate(servers)
+    #knn_conn = KNNServersUpdate(servers, knn_needed_params)
+    knn_conn = KMeansServersUpdate(servers, k_means_needed_params)
     knn_conn2 = KNNServersUpdate(servers, knn_needed_params)
     
     move = [[-10,0], [0,-10], [0,10], [10,0]]
@@ -112,10 +113,11 @@ if __name__ == "__main__":
             for c in range(n):
                 #print("asdsad----")
                 p = positions[c]
-                if p[0] < 150 or p[1] < 200:
-                    m = [random.randint(-20,20), random.randint(-20,20)]
-                    p[0] = (p[0] + m[0])%500
-                    p[1] = (p[1] + m[1])%600
+                #print(p)
+                #if p[0] < 150 or p[1] < 200:
+                m = [random.randint(-5,5), random.randint(-5,5)]
+                p[0] = (p[0] + m[0])%500
+                p[1] = (p[1] + m[1])%600
                 knn_conn.get_server(p, c)
 
 
